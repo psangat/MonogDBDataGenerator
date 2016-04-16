@@ -17,13 +17,14 @@ set datestr=%mm%_%yy%
 set logFile=log_%dd%_%mm%_%yy%.txt
 set coll=zarkov_%datestr%
 set fileName=%coll%.json
-REM set port=%1
-set port=4430
+set port=%1
+REM set port=4430
 
-REM Step 1: Export the collection in localhost
-REM Step 2: Import the collection in remote server
+REM Step 1: Check if the data is being inserted before locking the database
+REM Step 2: Export the collection in localhost
 REM Step 3: Drop the collection in localhost
-REM Step 4: Remove the exported file
+REM Step 4: Import the collection in remote server
+REM Step 5: Remove the exported file
 echo -------------------------START OF PROCESS------------------------------------- >> C:\data\outfiles\%logFile%
 :insertionCheck
 for /f %%i in ('call "C:\Program Files\MongoDB\Server\3.2\bin\mongo.exe" --host 127.0.0.1 --port %port%   agilent --eval "db.getCollection('Locks').count({"lock":'Y'})"') do set RESULT=%%i
@@ -88,8 +89,6 @@ if %RESULT% equ 0 (
 		goto :deleteFile
 	)
 
-	:endScript
-	echo ------------------------END OF PROCESS-------------------------------------- >> C:\data\outfiles\%logFile%
 ) else (
 	echo [%fulldate%]:Info - Collection Currently in use. Waiting for insertion operation to complete.>> C:\data\outfiles\%logFile%
 	REM sleep 5 mins before next try.
@@ -97,4 +96,7 @@ if %RESULT% equ 0 (
 	echo [%fulldate%]:Info - Restarting the ETL process.>> C:\data\outfiles\%logFile%
 	goto :insertionCheck
 )
+
+	:endScript
+	echo ------------------------END OF PROCESS-------------------------------------- >> C:\data\outfiles\%logFile%
   
