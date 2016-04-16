@@ -78,7 +78,7 @@ if %RESULT% equ 0 (
 
 	:deleteFile
 	echo [%fulldate%]:Info - File being deleted: %fileName%.>> C:\data\outfiles\%logFile%
-		REM DEL C:\data\outfiles\%fileName% >> C:\data\outfiles\%logFile% 2>&1
+		DEL C:\data\outfiles\%port%\%fileName% >> C:\data\outfiles\%logFile% 2>&1
 	if %errorlevel% equ 0 (
 		goto :endScript
 	) else (
