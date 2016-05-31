@@ -58,6 +58,8 @@ namespace MonogDBDataGenerator
         public static string Sequence = "sequence";
         public static string UVSampleStepSize = "uv_sample_step_size";
         public static string DetectorChannel = "detector_channel";
+        public static string Lock = "lock";
+        public static string SATApplied = "sat_applied";
 
     }
 }

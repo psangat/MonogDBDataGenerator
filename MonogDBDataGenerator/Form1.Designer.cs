@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.eventLog1 = new System.Diagnostics.EventLog();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.remoteDataGenereate = new System.Windows.Forms.Button();
@@ -56,43 +57,52 @@
             // 
             // remoteDataGenereate
             // 
-            this.remoteDataGenereate.Location = new System.Drawing.Point(352, 19);
+            this.remoteDataGenereate.BackColor = System.Drawing.Color.Transparent;
+            this.remoteDataGenereate.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.remoteDataGenereate.Location = new System.Drawing.Point(0, 6);
             this.remoteDataGenereate.Name = "remoteDataGenereate";
             this.remoteDataGenereate.Size = new System.Drawing.Size(151, 28);
             this.remoteDataGenereate.TabIndex = 6;
-            this.remoteDataGenereate.Text = "Generate Data R";
-            this.remoteDataGenereate.UseVisualStyleBackColor = true;
+            this.remoteDataGenereate.Text = "Generate Data";
+            this.remoteDataGenereate.UseVisualStyleBackColor = false;
             this.remoteDataGenereate.Click += new System.EventHandler(this.remoteDataGenereate_Click);
             // 
             // console
             // 
-            this.console.BackColor = System.Drawing.SystemColors.InactiveCaptionText;
-            this.console.ForeColor = System.Drawing.SystemColors.ActiveCaption;
-            this.console.Location = new System.Drawing.Point(6, 53);
+            this.console.BackColor = System.Drawing.Color.LightSlateGray;
+            this.console.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
+            this.console.Location = new System.Drawing.Point(154, 6);
             this.console.Multiline = true;
             this.console.Name = "console";
             this.console.ReadOnly = true;
             this.console.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.console.Size = new System.Drawing.Size(497, 356);
+            this.console.Size = new System.Drawing.Size(349, 403);
             this.console.TabIndex = 3;
             // 
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
+            this.tabControl1.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
+            this.tabControl1.Multiline = true;
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.ShowToolTips = true;
             this.tabControl1.Size = new System.Drawing.Size(517, 444);
             this.tabControl1.TabIndex = 4;
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
+            this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(545, 468);
             this.Controls.Add(this.tabControl1);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(4);
+            this.MaximizeBox = false;
             this.Name = "Form1";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Zarkov - Data Generator";
             ((System.ComponentModel.ISupportInitialize)(this.eventLog1)).EndInit();
             this.tabPage1.ResumeLayout(false);

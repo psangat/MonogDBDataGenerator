@@ -4,6 +4,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -24,7 +30,7 @@ namespace MonogDBDataGenerator
         String[] testTypes = new String[] { "Electronic Noise", "Light Throughput", "0 Abs Noise", "Stray Light (Auto)", "Minimum SBW", "Wavelength Drive Check (Short)", "Wavelength Drive Check (Long)", "Stray Light (Manual)" };
         String[] testMethods = new String[] { "Time Scan", "Single Beam WL Scan" };
         public Object Temp { get; set; }
-
+        int _port = 1111;
         public Form1()
         {
             InitializeComponent();
@@ -120,48 +126,110 @@ namespace MonogDBDataGenerator
                 console.AppendText("\n========================================================== \n");
                 console.AppendText("\n  Complete!! \n \n Time elapsed:" + ts.Minutes + ":" + ts.Seconds + ":" + ts.Milliseconds);
             }*/
-            var _collection = connectServerAndGetCollection("agilent1", "zarkov_v3");
-            createAndInsertData(_collection);
+            //var _collection = connectServerAndGetCollection("agilent1", "zarkov_v3");
+            //createAndInsertData(_collection);
 
 
             //Console.ReadKey();
 
         }
 
-        private void remoteDataGenereate_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Verifies the open ports and database locks. Then inserts data into database if all cases pass.
+        /// </summary>
+        /// <param name="_port"></param>
+        private void verifyLockAndGetConnection(out int _port)
         {
-             var _collection = connectServerAndGetCollection("agilent", "zarkov_" + DateTime.Now.Month + "_" + DateTime.Now.Year);
-             createAndInsertData(_collection);
+            var ports = ConfigurationManager.AppSettings.Get("ports").Split(',');
+            string conn = String.Format(@"mongodb://{0}:", ConfigurationManager.AppSettings.Get("serverIP"));
+            _port = 0000;
+            foreach (string port in ports)
+            {
+                var isPortOpen = isPortAvailable(ConfigurationManager.AppSettings.Get("serverIP"), Convert.ToInt16(port));
+                if (isPortOpen)
+                {
+                    try
+                    {
+                        var stri = new MongoClient(conn + port).GetDatabase("admin").RunCommand<BsonDocument>(new BsonDocument { { "currentOp", true } });
+                        console.AppendText(String.Format("\nConnecting to port #{0}. \nChecking for database locks.. \n", port));
+                        stri.GetValue("fsyncLock");
+                        console.AppendText(String.Format("\nDatabase lock found.\n Looking for another port.\n"));
+
+                    }
+                    catch (Exception)
+                    {
+                        // when there is no lock, an exception is raised
+                        console.AppendText(String.Format("\nNo database locks found on port #{0}.. \n", port));
+                        var _collectionLocks = connectServerAndGetCollection(conn + port, "agilent", "Locks");
+
+                        var _filter = Builders<BsonDocument>.Filter.Eq(DBConstants.Lock, "Y");
+                        var _result = _collectionLocks.Count(_filter);
+                        if (_result.Equals(0))
+                        {
+                            var update = Builders<BsonDocument>.Update.Set(DBConstants.Lock, "Y").CurrentDate("lockedDate");
+                            _collectionLocks.UpdateOne(_filter, update, new UpdateOptions { IsUpsert = true });
+                            var _collection = connectServerAndGetCollection(conn + port, "agilent", "zarkov_" + DateTime.Now.Month.ToString("d2") + "_" + DateTime.Now.Year);
+                            createAndInsertData(_collection);
+                            _port = Convert.ToInt16(port);
+                            var updateLock = Builders<BsonDocument>.Update.Set(DBConstants.Lock, "N").CurrentDate("releaseDate");
+                            _collectionLocks.UpdateOne(_filter, updateLock);
+                            break;
+                        }
+                        else
+                        {
+                            console.AppendText(String.Format("\nPort #{0} is being used by another instrument.\nLookng for other ports. \n", port));
+                            continue;
+                        }
+                    }
+                }
+            }
         }
 
-        private IMongoCollection<BsonDocument> connectServerAndGetCollection(string dbName, string collection)
+        /// <summary>
+        /// Checks if the port is open in the remote server.
+        /// </summary>
+        /// <param name="_HostURI"></param>
+        /// <param name="_PortNumber"></param>
+        /// <returns>boolean</returns>
+        private bool isPortAvailable(string _HostURI, int _PortNumber)
         {
             try
             {
-                return new MongoClient(ConfigurationSettings.AppSettings["MongoDBConectionString"]).GetDatabase(dbName).GetCollection<BsonDocument>(collection);
+                TcpClient client = new TcpClient(_HostURI, _PortNumber);
+                return true;
+            }
+            catch (Exception)
+            {
+                console.AppendText(String.Format("\nPort #{0} is not running mongod service. \nLooking for other available ports.. \n", _PortNumber));
+                return false;
+            }
+        }
 
+        private void remoteDataGenereate_Click(object sender, EventArgs e)
+        {
+            verifyLockAndGetConnection(out _port);
+            // Batch process execution is no longer part of this application and will be run as a scheduled job.
+            // executeBatchProcess(_port, "mongoETL.bat");
+        }
+
+        /// <summary>
+        /// Makes a connection to the server and returns the required collection.
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="dbName"></param>
+        /// <param name="collection"></param>
+        /// <returns>MongoDB Collection</returns>
+        private IMongoCollection<BsonDocument> connectServerAndGetCollection(string connection, string dbName, string collection)
+        {
+            try
+            {
+                return new MongoClient(connection).GetDatabase(dbName).GetCollection<BsonDocument>(collection);
             }
             catch (Exception ex)
             {
                 console.AppendText(String.Format("[Error]: {0}", ex.Message));
                 return null;
             }
-        }
-
-        private void swapTest() {
-            var lis = new List<BsonDocument>();
-            var bsdoc = new BsonDocument();
-            for (int i = 1; i < 10; i++) {
-                bsdoc.Add(DBConstants.Id, Guid.NewGuid());
-                bsdoc.Add(DBConstants.EngineSN, serialGenerator());
-                
-                Temp = bsdoc.Clone();
-                lis.Add(((BsonDocument)Temp));
-                bsdoc.Remove(DBConstants.Id);
-            }
-
-
-        
         }
 
         private void createAndInsertData(IMongoCollection<BsonDocument> _collection)
@@ -174,7 +242,7 @@ namespace MonogDBDataGenerator
                     {
                         var _documents = new List<BsonDocument>();
                         var _measurement = new BsonDocument();
-                        console.AppendText(String.Format("Creating Document: {0}\n", i));
+                        console.AppendText(String.Format("\nCreating Document: {0}\n", i));
                         var _id = serialGenerator();
                         _measurement.Add(DBConstants.MetaID, _id);
                         _measurement.Add(DBConstants.EngineSN, randomEngineSNGenerator());
@@ -223,8 +291,9 @@ namespace MonogDBDataGenerator
                         _measurement.Add(DBConstants.TestType, testType);
                         _measurement.Add(DBConstants.TestMethod, randomTestMethodGenerator());
                         _measurement.Add(DBConstants.SpectralAveragingTime, randomIntegerGenerator(0, 1));
+                        _measurement.Add(DBConstants.SATApplied, "Yes");
 
-                        var maxRecordLimit = 450000;
+                        var maxRecordLimit = 40000;
                         for (int K = 1; K <= maxRecordLimit; K++)
                         {
 
@@ -248,13 +317,13 @@ namespace MonogDBDataGenerator
 
                             _measurement.Add(DBConstants.Data, _dataValues);
                             _measurement.Add(DBConstants.Id, Guid.NewGuid());
-                             var tempMeasurement = (BsonDocument)_measurement.Clone();
+                            var tempMeasurement = (BsonDocument)_measurement.Clone();
                             _documents.Add(tempMeasurement);
                             if (_documents.Count.Equals(5000) || K.Equals(maxRecordLimit))
                             {
                                 var startTimeInsert = DateTime.Now;
                                 var options = new InsertManyOptions { IsOrdered = false };
-                                
+
                                 if (K.Equals(maxRecordLimit))
                                 {
                                     console.AppendText("Final Insertion Started...\n");
@@ -287,7 +356,7 @@ namespace MonogDBDataGenerator
                             _measurement.Remove(DBConstants.Id);
                             _measurement.Remove(DBConstants.Data);
                         }
-                        
+
                         /// Do some calculations for result here
                         var _testResult = new BsonArray();
                         switch (testType)
@@ -412,5 +481,20 @@ namespace MonogDBDataGenerator
         {
             return new Random().Next(min, max);
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            //PortInUse(4431);
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void portTextBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
-} 
+}
